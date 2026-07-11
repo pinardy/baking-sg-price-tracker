@@ -84,6 +84,14 @@ export interface Product {
     provider_id: string;
     url: string;
   } | null;
+  unit_spread: {
+    min_unit_price_sgd: number;
+    max_unit_price_sgd: number;
+    unit_base: 'kg' | 'l' | 'pcs';
+    abs: number;
+    pct: number;
+    dearest_provider_id: string;
+  } | null;
 }
 
 export interface SearchResult {

@@ -85,6 +85,7 @@ export function Dashboard({ dataVersion }: { dataVersion: number }) {
     const rows = [...filtered];
     const price = (p: Product) => p.lowest?.price_sgd ?? null;
     const unit = (p: Product) => p.cheapest_per_unit?.unit_price_sgd ?? null;
+    const savings = (p: Product) => p.unit_spread?.pct ?? null;
     const byNullable = (get: (p: Product) => number | null, dir: 1 | -1) => (a: Product, b: Product) => {
       const pa = get(a);
       const pb = get(b);
@@ -96,6 +97,7 @@ export function Dashboard({ dataVersion }: { dataVersion: number }) {
     if (sort === 'price-asc') rows.sort(byNullable(price, 1));
     else if (sort === 'price-desc') rows.sort(byNullable(price, -1));
     else if (sort === 'unit-asc') rows.sort(byNullable(unit, 1));
+    else if (sort === 'savings') rows.sort(byNullable(savings, -1)); // biggest spread first
     else if (sort === 'name') rows.sort((a, b) => a.name.localeCompare(b.name));
     return rows;
   }, [filtered, sort]);
@@ -187,6 +189,7 @@ export function Dashboard({ dataVersion }: { dataVersion: number }) {
           <option value="price-asc">Price: low to high</option>
           <option value="price-desc">Price: high to low</option>
           <option value="unit-asc">Cheapest per kg/L</option>
+          <option value="savings">Biggest savings</option>
           <option value="name">Name A–Z</option>
         </select>
         {filtersActive && (
@@ -215,7 +218,7 @@ export function Dashboard({ dataVersion }: { dataVersion: number }) {
         <thead>
           <tr>
             <th>Ingredient</th>
-            <th>Lowest now</th>
+            <th>Best value</th>
             <th>Prices by shop</th>
           </tr>
         </thead>
@@ -237,21 +240,40 @@ export function Dashboard({ dataVersion }: { dataVersion: number }) {
                   </div>
                 </div>
               </td>
-              <td data-label="Lowest now">
-                {p.lowest ? (
+              <td data-label="Best value">
+                {p.cheapest_per_unit ? (
+                  <>
+                    <div className="best-value-row">
+                      <span className="price-chip unit-lowest">
+                        {formatUnitPrice(p.cheapest_per_unit.unit_price_sgd, p.cheapest_per_unit.unit_base)}
+                      </span>
+                      {p.unit_spread && p.unit_spread.pct >= 0.05 && (
+                        <span
+                          className="savings-badge"
+                          title={`vs ${PROVIDER_LABELS[p.unit_spread.dearest_provider_id] ?? p.unit_spread.dearest_provider_id} — the dearest shop per ${p.unit_spread.unit_base === 'pcs' ? 'piece' : p.unit_spread.unit_base}`}
+                        >
+                          save {Math.round(p.unit_spread.pct * 100)}%
+                        </span>
+                      )}
+                    </div>
+                    <div className="muted">
+                      at <a href={p.cheapest_per_unit.url} target="_blank" rel="noreferrer">{PROVIDER_LABELS[p.cheapest_per_unit.provider_id] ?? p.cheapest_per_unit.provider_id}</a>
+                    </div>
+                    {p.lowest && (
+                      <div className="muted">
+                        lowest pack {formatDualPrice(p.lowest.price_sgd, p.lowest.price, p.lowest.currency)}
+                      </div>
+                    )}
+                  </>
+                ) : p.lowest ? (
                   <>
                     <span className="price-chip lowest">
                       {formatDualPrice(p.lowest.price_sgd, p.lowest.price, p.lowest.currency)}
                     </span>
                     <div className="muted">
                       at <a href={p.lowest.url} target="_blank" rel="noreferrer">{PROVIDER_LABELS[p.lowest.provider_id] ?? p.lowest.provider_id}</a>
+                      <span title="pack size unknown, so no per-unit comparison"> · pack price</span>
                     </div>
-                    {p.cheapest_per_unit && (
-                      <div className="muted">
-                        best {formatUnitPrice(p.cheapest_per_unit.unit_price_sgd, p.cheapest_per_unit.unit_base)}{' '}
-                        at {PROVIDER_LABELS[p.cheapest_per_unit.provider_id] ?? p.cheapest_per_unit.provider_id}
-                      </div>
-                    )}
                   </>
                 ) : (
                   <span className="muted">no data yet</span>

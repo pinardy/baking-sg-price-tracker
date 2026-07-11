@@ -1,5 +1,10 @@
 import { db } from '../db/connection.js';
-import { unitPrice } from '../lib/packSize.js';
+import { toBaseUnit, unitPrice } from '../lib/packSize.js';
+
+// Only compare pack sizes within this factor of the median when computing
+// "best value" and savings — an 11g sachet vs a 500g bag has an extreme
+// per-unit price that reflects pack size, not a shop-to-shop saving.
+const PACK_BAND_FACTOR = 6;
 
 /** Latest snapshot per link, joined onto product links. */
 const LINKS_WITH_LATEST = `
@@ -40,7 +45,7 @@ export function listProducts(): any[] {
     const lowest = converted.length
       ? converted.reduce((a, b) => (b.latest_price_sgd < a.latest_price_sgd ? b : a))
       : lowestSingleCurrency(priced);
-    const cheapestPerUnit = lowestUnitPrice(productLinks);
+    const unit = unitPriceStats(productLinks);
     // Representative thumbnail: prefer the cheapest link's image, else any.
     const imageLink =
       (lowest && productLinks.find((l) => l.id === lowest.id && l.image_url)) ??
@@ -58,14 +63,30 @@ export function listProducts(): any[] {
             url: lowest.url,
           }
         : null,
-      cheapest_per_unit: cheapestPerUnit
+      cheapest_per_unit: unit
         ? {
-            unit_price_sgd: cheapestPerUnit.unit_price_sgd,
-            unit_base: cheapestPerUnit.unit_base,
-            provider_id: cheapestPerUnit.provider_id,
-            url: cheapestPerUnit.url,
+            unit_price_sgd: unit.cheapest.unit_price_sgd,
+            unit_base: unit.base,
+            provider_id: unit.cheapest.provider_id,
+            url: unit.cheapest.url,
           }
         : null,
+      // Savings from buying the cheapest vs. dearest shop, compared per unit
+      // within the dominant base. Null unless 2+ comparable shops exist.
+      unit_spread:
+        unit && unit.count >= 2
+          ? {
+              min_unit_price_sgd: unit.cheapest.unit_price_sgd,
+              max_unit_price_sgd: unit.dearest.unit_price_sgd,
+              unit_base: unit.base,
+              abs: unit.dearest.unit_price_sgd - unit.cheapest.unit_price_sgd,
+              pct:
+                unit.dearest.unit_price_sgd > 0
+                  ? (unit.dearest.unit_price_sgd - unit.cheapest.unit_price_sgd) / unit.dearest.unit_price_sgd
+                  : 0,
+              dearest_provider_id: unit.dearest.provider_id,
+            }
+          : null,
     };
   });
 }
@@ -76,18 +97,33 @@ function lowestSingleCurrency(priced: any[]): any | null {
 }
 
 /**
- * Cheapest link by unit price, compared within the product's dominant base
- * unit (a product mixing $/kg and $/pc links only ranks the majority base).
+ * Cheapest and dearest links by unit price, compared within the product's
+ * dominant base unit (a product mixing $/kg and $/pc links only ranks the
+ * majority base) AND within a pack-size band around the median, so the
+ * comparison is like-for-like. Drives both "best value" and the savings spread.
  */
-function lowestUnitPrice(links: any[]): any | null {
-  const priced = links.filter((l) => l.unit_price_sgd != null);
+function unitPriceStats(
+  links: any[],
+): { cheapest: any; dearest: any; base: string; count: number } | null {
+  const priced = links.filter((l) => l.unit_price_sgd != null && l.pack_qty != null && l.pack_unit);
   if (!priced.length) return null;
   const baseCounts = new Map<string, number>();
   for (const l of priced) baseCounts.set(l.unit_base, (baseCounts.get(l.unit_base) ?? 0) + 1);
   const dominantBase = [...baseCounts.entries()].sort((a, b) => b[1] - a[1])[0][0];
-  return priced
+
+  const pool = priced
     .filter((l) => l.unit_base === dominantBase)
-    .reduce((a, b) => (b.unit_price_sgd < a.unit_price_sgd ? b : a));
+    .map((l) => ({ link: l, baseQty: toBaseUnit({ qty: l.pack_qty, unit: l.pack_unit }).qty }));
+  const sortedQty = pool.map((x) => x.baseQty).sort((a, b) => a - b);
+  const median = sortedQty[Math.floor(sortedQty.length / 2)];
+  let comparable = pool.filter(
+    (x) => x.baseQty >= median / PACK_BAND_FACTOR && x.baseQty <= median * PACK_BAND_FACTOR,
+  );
+  if (comparable.length < 2) comparable = pool;
+
+  const cheapest = comparable.reduce((a, b) => (b.link.unit_price_sgd < a.link.unit_price_sgd ? b : a)).link;
+  const dearest = comparable.reduce((a, b) => (b.link.unit_price_sgd > a.link.unit_price_sgd ? b : a)).link;
+  return { cheapest, dearest, base: dominantBase, count: comparable.length };
 }
 
 export function getProduct(id: number | string): any | null {
