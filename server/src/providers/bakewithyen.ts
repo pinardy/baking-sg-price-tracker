@@ -112,11 +112,13 @@ export class BakeWithYenProvider implements PriceProvider {
 
     const title = product.name ? String(product.name) : undefined;
     const pack = title ? parsePackSize(title) : null;
+    const image = Array.isArray(product.image) ? product.image[0] : product.image;
     return {
       price: offer.price,
       currency: offer.currency ?? 'SGD',
       inStock: offer.availability ? /InStock/i.test(offer.availability) : null,
       title,
+      ...(typeof image === 'string' ? { imageUrl: image } : {}),
       ...(pack ? { packSize: pack, packSource: 'parsed' as const } : {}),
     };
   }

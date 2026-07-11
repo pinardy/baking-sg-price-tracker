@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.js';
+import { parseBrand } from '../lib/brand.js';
 import { parsePackSize, type PackSize } from '../lib/packSize.js';
 import { runFetch } from '../services/fetcher.js';
 import { getHistory, getProduct, listProducts } from '../services/queries.js';
@@ -28,6 +29,7 @@ const linkPickSchema = z.object({
   query: z.string().nullable().optional(),
   title: z.string().optional(),
   url: z.string().url(),
+  imageUrl: z.string().url().optional(),
   // Explicit pack size from the UI counts as a manual override; otherwise
   // the title is parsed and fetch runs keep it fresh.
   packQty: z.number().positive().optional(),
@@ -76,8 +78,8 @@ productsRouter.post('/', (req, res) => {
 
   const insertLink = db.prepare(
     `INSERT INTO product_links (product_id, provider_id, external_id, variant_id, query, url, title,
-                                pack_qty, pack_unit, pack_source)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                pack_qty, pack_unit, pack_source, image_url, brand)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const linkIds: number[] = [];
   const productId = db.transaction(() => {
@@ -107,6 +109,8 @@ productsRouter.post('/', (req, res) => {
         pack.qty,
         pack.unit,
         pack.source,
+        link.imageUrl ?? null,
+        parseBrand(link.title),
       );
       linkIds.push(result.lastInsertRowid as number);
     }
@@ -165,8 +169,8 @@ productsRouter.post('/:id/links', (req, res) => {
   const result = db
     .prepare(
       `INSERT INTO product_links (product_id, provider_id, external_id, variant_id, query, url, title,
-                                  pack_qty, pack_unit, pack_source)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                  pack_qty, pack_unit, pack_source, image_url, brand)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       req.params.id,
@@ -179,6 +183,8 @@ productsRouter.post('/:id/links', (req, res) => {
       pack.qty,
       pack.unit,
       pack.source,
+      link.imageUrl ?? null,
+      parseBrand(link.title),
     );
   void runFetch('manual', [result.lastInsertRowid as number]);
   res.status(201).json({ id: result.lastInsertRowid });

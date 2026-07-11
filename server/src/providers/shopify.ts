@@ -115,6 +115,7 @@ export class ShopifyProvider implements PriceProvider {
       currency: this.currency,
       inStock: variant.available,
       title: product.title,
+      imageUrl: absoluteUrl(product.featured_image ?? product.images?.[0]),
     };
   }
 
@@ -133,4 +134,10 @@ export class ShopifyProvider implements PriceProvider {
     ctx.cache.set(cacheKey, product);
     return product;
   }
+}
+
+/** Shopify returns protocol-relative image URLs ("//cdn.shopify.com/…"). */
+function absoluteUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  return url.startsWith('//') ? `https:${url}` : url;
 }

@@ -26,6 +26,8 @@ export interface PriceResult {
   /** Pack size refresh; 'provider' beats 'parsed', neither overwrites a manual value. */
   packSize?: PackSize;
   packSource?: 'provider' | 'parsed';
+  /** Product thumbnail, refreshed onto the link so the dashboard can show it. */
+  imageUrl?: string;
 }
 
 export interface LinkRef {

@@ -10,6 +10,12 @@ const schemaPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'sche
 const MIGRATIONS: (() => void)[] = [
   // v1: initial schema
   () => db.exec(fs.readFileSync(schemaPath, 'utf-8')),
+  // v2: thumbnails + per-link brand identity (populated by fetch runs).
+  () =>
+    db.exec(`
+      ALTER TABLE product_links ADD COLUMN image_url TEXT;
+      ALTER TABLE product_links ADD COLUMN brand TEXT;
+    `),
 ];
 
 export function migrate(): void {

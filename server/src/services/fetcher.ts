@@ -1,4 +1,5 @@
 import { db } from '../db/connection.js';
+import { parseBrand } from '../lib/brand.js';
 import { parsePackSize } from '../lib/packSize.js';
 import { createPoliteFetch } from '../lib/politeFetch.js';
 import { getProvider, getProviders, isKnownProvider } from '../providers/registry.js';
@@ -98,6 +99,7 @@ export async function runFetch(trigger: FetchTrigger, onlyLinkIds?: number[]): P
               fx.toSgd(result.price, result.currency),
             );
             refreshPackSize(link, result);
+            refreshLinkMeta(link, result);
             okCount++;
           } catch (err) {
             errors.push({ linkId: link.id, message: err instanceof Error ? err.message : String(err) });
@@ -167,6 +169,17 @@ function refreshPackSize(link: LinkRow, result: PriceResult): void {
     source,
     link.id,
   );
+}
+
+/** Refreshes the link's thumbnail and parsed brand from the latest fetch. */
+function refreshLinkMeta(link: LinkRow, result: PriceResult): void {
+  if (result.imageUrl) {
+    db.prepare('UPDATE product_links SET image_url = ? WHERE id = ?').run(result.imageUrl, link.id);
+  }
+  const brand = parseBrand(result.title);
+  if (brand) {
+    db.prepare('UPDATE product_links SET brand = ? WHERE id = ?').run(brand, link.id);
+  }
 }
 
 export function getEnabledProviders() {

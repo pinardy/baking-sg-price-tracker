@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   api,
@@ -14,9 +14,13 @@ import {
   ProductLink,
   SearchResult,
 } from '../api';
-import { PriceHistoryChart } from '../components/PriceHistoryChart';
 import { ProviderTag } from '../components/ProviderTag';
 import { SourceSearchPanel } from '../components/SourceSearchPanel';
+
+// Recharts is ~half the bundle; load it only when a product page is opened.
+const PriceHistoryChart = lazy(() =>
+  import('../components/PriceHistoryChart').then((m) => ({ default: m.PriceHistoryChart })),
+);
 
 const RANGES = [30, 90, 365];
 const PACK_UNITS: PackUnit[] = ['g', 'kg', 'ml', 'l', 'pcs'];
@@ -122,7 +126,9 @@ export function ProductDetail({ dataVersion }: { dataVersion: number }) {
             </button>
           ))}
         </div>
-        <PriceHistoryChart history={history} marketplaceLinkIds={marketplaceLinkIds} />
+        <Suspense fallback={<div className="muted">Loading chart…</div>}>
+          <PriceHistoryChart history={history} marketplaceLinkIds={marketplaceLinkIds} />
+        </Suspense>
       </div>
 
       <div className="card">
@@ -173,10 +179,16 @@ export function ProductDetail({ dataVersion }: { dataVersion: number }) {
               <tr key={link.id}>
                 <td data-label="Shop"><ProviderTag id={link.provider_id} /></td>
                 <td data-label="Listing">
-                  <a href={link.url} target="_blank" rel="noreferrer">
-                    {link.title ?? link.query ?? link.url}
-                  </a>
-                  {link.query && <div className="muted">tracked query: “{link.query}”</div>}
+                  <div className="listing-cell">
+                    {link.image_url && <img className="listing-thumb" src={link.image_url} alt="" loading="lazy" />}
+                    <div>
+                      <a href={link.url} target="_blank" rel="noreferrer">
+                        {link.title ?? link.query ?? link.url}
+                      </a>
+                      {link.brand && <span className="brand-pill">{link.brand}</span>}
+                      {link.query && <div className="muted">tracked query: “{link.query}”</div>}
+                    </div>
+                  </div>
                 </td>
                 <td data-label="Pack">
                   {editingPackLink === link.id ? (

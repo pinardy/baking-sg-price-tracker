@@ -46,6 +46,8 @@ export interface ProductLink {
   pack_qty: number | null;
   pack_unit: PackUnit | null;
   pack_source: 'none' | 'parsed' | 'provider' | 'manual';
+  image_url: string | null;
+  brand: string | null;
   is_active: number;
   latest_price: number | null;
   latest_currency: string | null;
@@ -67,6 +69,7 @@ export interface Product {
   target_currency: string;
   is_active: number;
   created_at: string;
+  image_url: string | null;
   links: ProductLink[];
   lowest: {
     price: number;

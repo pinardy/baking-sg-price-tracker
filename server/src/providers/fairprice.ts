@@ -66,6 +66,7 @@ export class FairPriceProvider implements PriceProvider {
       currency: 'SGD',
       inStock: productInStock(product),
       title: product.name,
+      imageUrl: firstImage(product),
       ...(pack ? { packSize: pack, packSource: 'provider' as const } : {}),
     };
   }

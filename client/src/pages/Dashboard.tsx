@@ -26,6 +26,7 @@ export function Dashboard({ dataVersion }: { dataVersion: number }) {
   const [maxPrice, setMaxPrice] = useState('');
   const [source, setSource] = useState('');
   const [category, setCategory] = useState('');
+  const [brand, setBrand] = useState('');
   const [sort, setSort] = useState('newest');
 
   useEffect(() => {
@@ -49,15 +50,26 @@ export function Dashboard({ dataVersion }: { dataVersion: number }) {
     return CATEGORIES.filter((c) => present.has(c));
   }, [products]);
 
+  const brands = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of products ?? []) {
+      if (p.brand) set.add(p.brand);
+      for (const l of p.links) if (l.brand) set.add(l.brand);
+    }
+    return [...set].sort();
+  }, [products]);
+
   const filtered = useMemo(() => {
     if (!products) return null;
     const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
     const min = parseFloat(minPrice);
     const max = parseFloat(maxPrice);
     return products.filter((p) => {
-      const haystack = `${p.name} ${p.brand ?? ''} ${p.variant_desc ?? ''} ${p.category}`.toLowerCase();
+      const linkBrands = p.links.map((l) => l.brand ?? '').join(' ');
+      const haystack = `${p.name} ${p.brand ?? ''} ${linkBrands} ${p.variant_desc ?? ''} ${p.category}`.toLowerCase();
       if (!tokens.every((t) => haystack.includes(t))) return false;
       if (category && p.category !== category) return false;
+      if (brand && p.brand !== brand && !p.links.some((l) => l.brand === brand)) return false;
       if (source && !p.links.some((l) => l.provider_id === source)) return false;
       // Price filter compares the current lowest SGD price.
       const price = p.lowest?.price_sgd;
@@ -65,7 +77,7 @@ export function Dashboard({ dataVersion }: { dataVersion: number }) {
       if (Number.isFinite(max) && (price == null || price > max)) return false;
       return true;
     });
-  }, [products, query, minPrice, maxPrice, source, category]);
+  }, [products, query, minPrice, maxPrice, source, category, brand]);
 
   const sorted = useMemo(() => {
     if (!filtered) return null;
@@ -105,7 +117,7 @@ export function Dashboard({ dataVersion }: { dataVersion: number }) {
     );
   }
 
-  const filtersActive = query || minPrice || maxPrice || source || category;
+  const filtersActive = query || minPrice || maxPrice || source || category || brand;
   const isStale = (l: { provider_id: string; latest_scraped_at: string | null }) => {
     if (!l.latest_scraped_at) return false;
     const limit = residentialOnly.has(l.provider_id) ? STALE_HOURS_RESIDENTIAL : STALE_HOURS;
@@ -138,6 +150,16 @@ export function Dashboard({ dataVersion }: { dataVersion: number }) {
             </option>
           ))}
         </select>
+        {brands.length > 0 && (
+          <select value={brand} onChange={(e) => setBrand(e.target.value)}>
+            <option value="">All brands</option>
+            {brands.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
+        )}
         <label className="muted">
           Price S$
           <input
@@ -180,6 +202,7 @@ export function Dashboard({ dataVersion }: { dataVersion: number }) {
                 setMaxPrice('');
                 setSource('');
                 setCategory('');
+                setBrand('');
               }}
             >
               Clear
@@ -200,9 +223,19 @@ export function Dashboard({ dataVersion }: { dataVersion: number }) {
           {sorted.map((p) => (
             <tr key={p.id}>
               <td data-label="Ingredient">
-                <Link to={`/products/${p.id}`}><strong>{p.name}</strong></Link>{' '}
-                <span className="category-pill">{CATEGORY_LABELS[p.category] ?? p.category}</span>
-                {p.variant_desc && <div className="muted">{p.variant_desc}</div>}
+                <div className="ingredient-cell">
+                  {p.image_url ? (
+                    <img className="ingredient-thumb" src={p.image_url} alt="" loading="lazy" />
+                  ) : (
+                    <span className="ingredient-thumb placeholder" aria-hidden>🧁</span>
+                  )}
+                  <div>
+                    <Link to={`/products/${p.id}`}><strong>{p.name}</strong></Link>{' '}
+                    <span className="category-pill">{CATEGORY_LABELS[p.category] ?? p.category}</span>
+                    {p.brand && <span className="brand-pill">{p.brand}</span>}
+                    {p.variant_desc && <div className="muted">{p.variant_desc}</div>}
+                  </div>
+                </div>
               </td>
               <td data-label="Lowest now">
                 {p.lowest ? (
@@ -228,6 +261,7 @@ export function Dashboard({ dataVersion }: { dataVersion: number }) {
                 {p.links.map((l) => (
                   <div key={l.id} style={{ marginBottom: 4 }}>
                     <ProviderTag id={l.provider_id} />
+                    {l.brand && <span className="brand-pill">{l.brand}</span>}
                     {l.latest_price != null ? (
                       <span className="price-chip" title={l.latest_scraped_at ?? ''}>
                         {formatDualPrice(l.latest_price_sgd, l.latest_price, l.latest_currency!)}

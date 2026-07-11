@@ -87,6 +87,7 @@ export class WooCommerceProvider implements PriceProvider {
             currency: price.currency,
             inStock: product.is_in_stock ?? null,
             title: joinTitle(product),
+            imageUrl: product.images?.[0]?.src,
           };
         }
       }
@@ -171,10 +172,19 @@ export class WooCommerceProvider implements PriceProvider {
         currency: offer.currency ?? this.defaultCurrency,
         inStock: offer.availability ? /InStock/i.test(offer.availability) : null,
         title: product.name ? String(product.name) : undefined,
+        imageUrl: jsonLdImage(product),
       };
     }
     throw new ProviderError(this.id, `no JSON-LD product price on ${url}`);
   }
+}
+
+/** JSON-LD `image` may be a string, an array, or an ImageObject. */
+function jsonLdImage(product: any): string | undefined {
+  const image = Array.isArray(product?.image) ? product.image[0] : product?.image;
+  if (typeof image === 'string') return image;
+  if (image && typeof image === 'object' && typeof image.url === 'string') return image.url;
+  return undefined;
 }
 
 function joinTitle(product: WcProduct, parent?: WcProduct): string {

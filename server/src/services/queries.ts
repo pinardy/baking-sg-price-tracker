@@ -41,8 +41,13 @@ export function listProducts(): any[] {
       ? converted.reduce((a, b) => (b.latest_price_sgd < a.latest_price_sgd ? b : a))
       : lowestSingleCurrency(priced);
     const cheapestPerUnit = lowestUnitPrice(productLinks);
+    // Representative thumbnail: prefer the cheapest link's image, else any.
+    const imageLink =
+      (lowest && productLinks.find((l) => l.id === lowest.id && l.image_url)) ??
+      productLinks.find((l) => l.image_url);
     return {
       ...p,
+      image_url: imageLink?.image_url ?? null,
       links: productLinks,
       lowest: lowest
         ? {
