@@ -28,6 +28,9 @@ describe('parsePackSize', () => {
     // Ambiguous variable-product parents → null
     ['Bake King Bread Flour (1kg/5kg)', null],
     ['Bread Flour (500g / 1kg)', null],
+    // …but a concrete variation suffix after the range wins
+    ['Bake King Plain Flour – 1kg/5kg — Weight: 1kg', { qty: 1, unit: 'kg' }],
+    ['Bake King Bread Flour – 1kg/5kg — Weight: 5kg', { qty: 5, unit: 'kg' }],
     // First metric token wins; %, SKU numbers, and unit-less titles don't match
     ['Vanilla Extract 118ml (4oz)', { qty: 118, unit: 'ml' }],
     ['Dark Couverture 70% 200G', { qty: 200, unit: 'g' }],

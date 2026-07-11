@@ -48,14 +48,21 @@ const DOZEN = /\b(half\s+)?dozen\b/i;
 export function parsePackSize(title: string): PackSize | null {
   const text = title.toLowerCase().replace(/\s+/g, ' ');
 
-  // Two size tokens separated by "/" is a pack-size range, not one size.
+  // Two size tokens separated by "/" is a pack-size range ("(1kg/5kg)"),
+  // not one size — unless a concrete variation suffix follows ("… 1kg/5kg —
+  // Weight: 1kg"), in which case the last token is the real size.
   const tokens = [...text.matchAll(SIZE_TOKEN)];
   if (tokens.length >= 2) {
     const between = text.slice(
       tokens[0].index! + tokens[0][0].length,
       tokens[1].index!,
     );
-    if (/^\s*\/\s*$/.test(between)) return null;
+    if (/^\s*\/\s*$/.test(between)) {
+      if (tokens.length === 2) return null;
+      const last = tokens[tokens.length - 1];
+      const unit = UNIT_ALIASES[last[2]];
+      return unit ? { qty: parseFloat(last[1]), unit } : null;
+    }
   }
 
   const multi = text.match(MULTIPACK);
