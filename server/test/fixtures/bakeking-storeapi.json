@@ -1,0 +1,20 @@
+[
+  {
+    "id": 501,
+    "name": "Bake King Bread Flour",
+    "type": "variable",
+    "permalink": "https://bakeking.com.sg/product/bake-king-bread-flour/",
+    "is_in_stock": true,
+    "prices": { "price": "260", "currency_code": "SGD", "currency_minor_unit": 2 },
+    "images": [{ "src": "https://bakeking.com.sg/img/bread-flour.jpg" }]
+  },
+  {
+    "id": 502,
+    "name": "RedMan Caster Sugar 500g",
+    "type": "simple",
+    "permalink": "https://bakeking.com.sg/product/redman-caster-sugar-500g/",
+    "is_in_stock": true,
+    "prices": { "price": "155", "currency_code": "SGD", "currency_minor_unit": 2 },
+    "images": []
+  }
+]

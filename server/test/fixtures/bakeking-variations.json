@@ -1,0 +1,20 @@
+[
+  {
+    "id": 511,
+    "name": "Bake King Bread Flour",
+    "type": "variation",
+    "variation": "Size: 1kg",
+    "permalink": "https://bakeking.com.sg/product/bake-king-bread-flour/?attribute_size=1kg",
+    "is_in_stock": true,
+    "prices": { "price": "260", "currency_code": "SGD", "currency_minor_unit": 2 }
+  },
+  {
+    "id": 512,
+    "name": "Bake King Bread Flour",
+    "type": "variation",
+    "variation": "Size: 5kg",
+    "permalink": "https://bakeking.com.sg/product/bake-king-bread-flour/?attribute_size=5kg",
+    "is_in_stock": true,
+    "prices": { "price": "1090", "currency_code": "SGD", "currency_minor_unit": 2 }
+  }
+]

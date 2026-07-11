@@ -1,0 +1,64 @@
+name: Fetch prices and deploy Pages
+
+on:
+  schedule:
+    - cron: '17 6 * * *' # off-the-hour to dodge GitHub cron congestion
+  workflow_dispatch:
+
+permissions:
+  contents: write # commit the updated price DB
+  pages: write
+  id-token: write
+
+# The fetch commits app.db — never let two runs race.
+concurrency:
+  group: fetch-and-deploy
+  cancel-in-progress: false
+
+jobs:
+  fetch-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Fetch prices into committed DB
+        run: npm run fetch:once -w server
+        env:
+          # Cloudflare blocks Bake With Yen from datacenter IPs; it is
+          # refreshed by local `npm run refresh:push` runs instead.
+          # (CI=true would auto-skip it anyway — this is documentation.)
+          SKIP_PROVIDERS: bakewithyen
+
+      - name: Commit updated DB
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'chore: daily price snapshot'
+          file_pattern: server/data/app.db
+
+      - name: Export JSON for the static client
+        run: npm run export:static -w server
+
+      - name: Build static client
+        run: npm run build -w client
+        env:
+          VITE_STATIC: '1'
+          VITE_BASE: /${{ github.event.repository.name }}/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: client/dist
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

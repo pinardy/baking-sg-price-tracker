@@ -1,0 +1,22 @@
+{
+  "name": "baking-sg-price-tracker",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
+    "seed": "npm run seed -w server",
+    "auto-match": "npm run auto-match -w server",
+    "smoke": "npm run smoke -w server",
+    "test": "npm run test -w server",
+    "build": "npm run build -w client",
+    "refresh": "npm run fetch:once -w server",
+    "refresh:push": "node scripts/refresh-push.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

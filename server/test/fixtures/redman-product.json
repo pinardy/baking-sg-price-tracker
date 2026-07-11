@@ -1,0 +1,11 @@
+{
+  "id": 6789012345,
+  "handle": "000000000000001242",
+  "title": "PLAIN FLOUR UNBLEACHED 1KG (#1242)",
+  "vendor": "REDMAN",
+  "variants": [
+    { "id": 40001112223334, "title": "Default Title", "price": 280, "available": true }
+  ],
+  "images": ["https://cdn.shopify.com/s/files/redman/plain-flour.jpg"],
+  "featured_image": "https://cdn.shopify.com/s/files/redman/plain-flour.jpg"
+}
