@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { db } from '../db/connection.js';
 import { migrate } from '../db/migrate.js';
+import { runCleanup } from '../lib/browser.js';
 import { createPoliteFetch } from '../lib/politeFetch.js';
 import { getProviders } from '../providers/registry.js';
 import type { FetchContext, SearchResult } from '../providers/types.js';
@@ -19,12 +20,12 @@ const linkExists = db.prepare(
   'SELECT 1 FROM product_links WHERE product_id = ? AND provider_id = ? AND is_active = 1',
 );
 const insertLink = db.prepare(
-  `INSERT INTO product_links (product_id, provider_id, external_id, variant_id, url, title,
+  `INSERT INTO product_links (product_id, provider_id, external_id, variant_id, query, url, title,
                               pack_qty, pack_unit, pack_source)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 );
 
-const ctx: FetchContext = { fetch: createPoliteFetch(), cache: new Map() };
+const ctx: FetchContext = { fetch: createPoliteFetch(), cache: new Map(), cleanup: [] };
 const providers = getProviders();
 
 function significantTokens(name: string): string[] {
@@ -61,6 +62,7 @@ for (const product of products) {
         provider.id,
         r.externalId,
         r.variantId ?? null,
+        r.query ?? null,
         r.url,
         r.title,
         r.packQty ?? null,
@@ -87,4 +89,5 @@ if (review.length) {
   console.log('\nNeeds manual review (use the AddProduct / product-page search UI):');
   for (const line of review) console.log(`  - ${line}`);
 }
+await runCleanup(ctx);
 db.close();

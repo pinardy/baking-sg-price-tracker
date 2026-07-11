@@ -15,9 +15,18 @@ Adapted from `price-tracker-strings`; same architecture, new domain.
 | Bake King | WooCommerce Store API | CI + local |
 | NTUC FairPrice | Server-rendered `__NEXT_DATA__` JSON | CI + local |
 | Bake With Yen | schema.org JSON-LD on product pages | **local only** (Cloudflare blocks datacenter IPs) |
+| Sheng Siong | Headless browser (Meteor SPA, DOM scrape) | **local only** (needs Playwright) |
+| Cold Storage | Headless browser (Next.js, DOM scrape) | **local only** (needs Playwright) |
 
-Future work: Sheng Siong needs a headless browser (Meteor SPA behind
-Imperva) — the `PriceProvider` interface supports it, nobody has written it yet.
+Sheng Siong and Cold Storage are client-rendered with no public API, so their
+providers drive a headless Chromium via **Playwright** (`npx playwright install
+chromium`). They disable themselves automatically if Playwright isn't
+installed, and — like Bake With Yen — are `residentialOnly`: refreshed by
+`npm run refresh:push`, not the CI cron.
+
+**Giant** was evaluated and left out: `giant.sg` is a marketing site, not a
+shoppable store — Giant's online groceries are sold through foodpanda's
+pandamart, which is session/location-gated and not politely scrapable.
 
 ## How it works
 
@@ -38,6 +47,7 @@ Imperva) — the `PriceProvider` interface supports it, nobody has written it ye
 
 ```bash
 npm install
+npx playwright install chromium   # optional: enables Sheng Siong + Cold Storage
 npm run seed          # ~20 common baking staples (products only)
 npm run dev           # server :3001 + client :5173
 ```

@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { runCleanup } from '../lib/browser.js';
 import { createPoliteFetch } from '../lib/politeFetch.js';
 import { getProviders } from '../providers/registry.js';
 import type { FetchContext, LinkRef } from '../providers/types.js';
@@ -35,9 +36,23 @@ const KNOWN_LINKS: Record<string, LinkRef> = {
     query: null,
     url: '',
   },
+  shengsiong: {
+    providerId: 'shengsiong',
+    externalId: null, // resolved from search results (with its stored query)
+    variantId: null,
+    query: null,
+    url: '',
+  },
+  coldstorage: {
+    providerId: 'coldstorage',
+    externalId: null, // resolved from search results
+    variantId: null,
+    query: null,
+    url: '',
+  },
 };
 
-const ctx: FetchContext = { fetch: createPoliteFetch(), cache: new Map() };
+const ctx: FetchContext = { fetch: createPoliteFetch(), cache: new Map(), cleanup: [] };
 
 for (const provider of getProviders()) {
   console.log(`\n=== ${provider.id} (${provider.label}) ===`);
@@ -53,7 +68,13 @@ for (const provider of getProviders()) {
     if (!link.externalId && !link.url) {
       const first = results.find((r) => r.url);
       if (!first) throw new Error('no search result to fetch');
-      link = { ...link, externalId: first.externalId, variantId: first.variantId ?? null, url: first.url };
+      link = {
+        ...link,
+        externalId: first.externalId,
+        variantId: first.variantId ?? null,
+        query: first.query ?? null,
+        url: first.url,
+      };
     }
     const price = await provider.fetchPrice(link, ctx);
     const pack = price.packSize ? ` pack=${price.packSize.qty}${price.packSize.unit} (${price.packSource})` : '';
@@ -63,3 +84,5 @@ for (const provider of getProviders()) {
     process.exitCode = 1;
   }
 }
+
+await runCleanup(ctx);

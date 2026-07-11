@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { db } from '../db/connection.js';
 import { migrate } from '../db/migrate.js';
 import { parsePackSize } from '../lib/packSize.js';
+import { runCleanup } from '../lib/browser.js';
 import { createPoliteFetch } from '../lib/politeFetch.js';
 import { getProvider } from '../providers/registry.js';
 import type { FetchContext, SearchResult } from '../providers/types.js';
@@ -105,6 +106,45 @@ const RULES: Rule[] = [
 
   { product: 'Cornstarch', provider: 'redman', must: ['cornstarch'] },
   { product: 'Cornstarch', provider: 'fairprice', query: 'corn flour', must: ['corn flour'] },
+
+  // Sheng Siong (headless; matched by re-search on the stored query).
+  { product: 'Plain Flour', provider: 'shengsiong', query: 'plain flour', must: ['plain flour'] },
+  { product: 'Bread Flour', provider: 'shengsiong', query: 'bread flour', must: ['bread flour'], avoid: ['wholemeal'] },
+  { product: 'Cake Flour', provider: 'shengsiong', query: 'cake flour', must: ['cake flour'] },
+  { product: 'Caster Sugar', provider: 'shengsiong', query: 'caster sugar', must: ['caster sugar'] },
+  { product: 'Brown Sugar', provider: 'shengsiong', query: 'brown sugar', must: ['brown sugar'] },
+  { product: 'Icing Sugar', provider: 'shengsiong', query: 'icing sugar', must: ['icing sugar'] },
+  { product: 'Unsalted Butter', provider: 'shengsiong', query: 'unsalted butter', must: ['butter', 'unsalted'] },
+  { product: 'Salted Butter', provider: 'shengsiong', query: 'salted butter', must: ['butter', 'salted'], avoid: ['unsalted'] },
+  { product: 'Full Cream Milk (UHT)', provider: 'shengsiong', query: 'uht full cream milk', must: ['milk'] },
+  { product: 'Condensed Milk', provider: 'shengsiong', query: 'condensed milk', must: ['condensed'] },
+  { product: 'Fresh Eggs', provider: 'shengsiong', query: 'eggs', must: ['egg'], avoid: ['quail', 'century', 'salted'] },
+  { product: 'Instant Dry Yeast', provider: 'shengsiong', query: 'instant yeast', must: ['yeast'] },
+  { product: 'Baking Powder', provider: 'shengsiong', query: 'baking powder', must: ['baking powder'] },
+  { product: 'Baking Soda', provider: 'shengsiong', query: 'baking soda', must: ['soda'] },
+  { product: 'Cocoa Powder', provider: 'shengsiong', query: 'cocoa powder', must: ['cocoa'] },
+  { product: 'Cornstarch', provider: 'shengsiong', query: 'corn flour', must: ['corn flour'] },
+
+  // Cold Storage (headless; stable /product/<slug> URLs).
+  { product: 'Plain Flour', provider: 'coldstorage', query: 'plain flour', must: ['plain flour'], avoid: ['plus', 'wholegrain'] },
+  { product: 'Bread Flour', provider: 'coldstorage', query: 'bread flour', must: ['bread flour'], avoid: ['wholemeal'] },
+  { product: 'Cake Flour', provider: 'coldstorage', query: 'cake flour', must: ['cake flour'] },
+  { product: 'Caster Sugar', provider: 'coldstorage', query: 'caster sugar', must: ['caster sugar'] },
+  { product: 'Brown Sugar', provider: 'coldstorage', query: 'brown sugar', must: ['brown sugar'] },
+  { product: 'Icing Sugar', provider: 'coldstorage', query: 'icing sugar', must: ['icing sugar'] },
+  { product: 'Unsalted Butter', provider: 'coldstorage', query: 'unsalted butter', must: ['butter', 'unsalted'] },
+  { product: 'Salted Butter', provider: 'coldstorage', query: 'salted butter', must: ['butter', 'salted'], avoid: ['unsalted'] },
+  { product: 'Whipping Cream', provider: 'coldstorage', query: 'whipping cream', must: ['whipping cream'] },
+  { product: 'Full Cream Milk (UHT)', provider: 'coldstorage', query: 'uht milk', must: ['milk'] },
+  { product: 'Condensed Milk', provider: 'coldstorage', query: 'condensed milk', must: ['condensed'] },
+  { product: 'Fresh Eggs', provider: 'coldstorage', query: 'eggs', must: ['egg'], avoid: ['quail', 'century', 'salted'] },
+  { product: 'Baking Powder', provider: 'coldstorage', query: 'baking powder', must: ['baking powder'] },
+  { product: 'Cocoa Powder', provider: 'coldstorage', query: 'cocoa powder', must: ['cocoa'] },
+  { product: 'Dark Chocolate Chips', provider: 'coldstorage', query: 'dark chocolate chips', must: ['dark', 'chocolate', 'chips'] },
+  { product: 'Almond Flour', provider: 'coldstorage', query: 'almond flour', must: ['almond flour'] },
+  { product: 'Cornstarch', provider: 'coldstorage', query: 'corn flour', must: ['corn'] },
+  { product: 'Vanilla Extract', provider: 'coldstorage', query: 'vanilla extract', must: ['vanilla', 'extract'] },
+  { product: 'Cocoa Powder', provider: 'shengsiong', query: 'cocoa', must: ['cocoa'] },
 ];
 
 migrate();
@@ -118,12 +158,12 @@ const linkExists = db.prepare(
   'SELECT 1 FROM product_links WHERE product_id = ? AND provider_id = ? AND is_active = 1',
 );
 const insertLink = db.prepare(
-  `INSERT INTO product_links (product_id, provider_id, external_id, variant_id, url, title,
+  `INSERT INTO product_links (product_id, provider_id, external_id, variant_id, query, url, title,
                               pack_qty, pack_unit, pack_source)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 );
 
-const ctx: FetchContext = { fetch: createPoliteFetch(), cache: new Map() };
+const ctx: FetchContext = { fetch: createPoliteFetch(), cache: new Map(), cleanup: [] };
 const searchCache = new Map<string, SearchResult[]>();
 
 async function search(providerId: string, query: string): Promise<SearchResult[]> {
@@ -182,6 +222,7 @@ for (const rule of RULES) {
     rule.provider,
     chosen.externalId,
     chosen.variantId ?? null,
+    chosen.query ?? null,
     chosen.url,
     chosen.title,
     pack?.qty ?? null,
@@ -197,4 +238,5 @@ if (misses.length) {
   console.log('No match (attach via the UI):');
   for (const miss of misses) console.log(`  - ${miss}`);
 }
+await runCleanup(ctx);
 db.close();

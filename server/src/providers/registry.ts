@@ -3,15 +3,20 @@ import { ShopifyProvider } from './shopify.js';
 import { WooCommerceProvider } from './woocommerce.js';
 import { FairPriceProvider } from './fairprice.js';
 import { BakeWithYenProvider } from './bakewithyen.js';
+import { ColdStorageProvider } from './coldstorage.js';
+import { ShengSiongProvider } from './shengsiong.js';
 
-// Future work: a Sheng Siong provider needs a headless browser (Meteor SPA
-// behind Imperva) — it would implement PriceProvider with Playwright inside
-// and set residentialOnly, slotting in as one more entry here.
+// Sheng Siong and Cold Storage are client-rendered with no public API, so
+// their providers drive a headless browser (Playwright) and disable
+// themselves when it isn't installed. They are residentialOnly: browser +
+// non-datacenter IP, refreshed via local `npm run refresh:push`, not CI.
 const allProviders: PriceProvider[] = [
   new ShopifyProvider('redman', 'RedMan (Phoon Huat)', 'https://shop.redmanshop.com', 'SGD'),
   new WooCommerceProvider('bakeking', 'Bake King', 'https://bakeking.com.sg', 'SGD'),
   new FairPriceProvider(),
   new BakeWithYenProvider(),
+  new ShengSiongProvider(),
+  new ColdStorageProvider(),
 ];
 
 /**

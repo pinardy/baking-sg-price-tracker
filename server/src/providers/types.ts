@@ -40,8 +40,10 @@ export interface LinkRef {
 
 export interface FetchContext {
   fetch: PoliteFetch;
-  /** Per-run cache, e.g. full Shopify catalogs keyed by host. */
+  /** Per-run cache, e.g. full Shopify catalogs or a shared headless browser. */
   cache: Map<string, unknown>;
+  /** Teardown callbacks (e.g. close the browser), run once the run/search ends. */
+  cleanup?: Array<() => Promise<void>>;
 }
 
 export interface PriceProvider {

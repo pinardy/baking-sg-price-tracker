@@ -16,22 +16,24 @@ function ids(): string[] {
 }
 
 describe('provider registry filtering', () => {
-  it('enables all four shops by default (outside CI)', () => {
+  it('enables all shops by default (outside CI; Playwright installed)', () => {
     for (const key of ENV_KEYS) delete process.env[key];
-    expect(ids()).toEqual(['redman', 'bakeking', 'fairprice', 'bakewithyen']);
+    expect(ids()).toEqual(['redman', 'bakeking', 'fairprice', 'bakewithyen', 'shengsiong', 'coldstorage']);
   });
 
-  it('drops residential-only providers in CI', () => {
+  it('drops residential-only providers in CI (leaving only datacenter-safe ones)', () => {
     for (const key of ENV_KEYS) delete process.env[key];
     process.env.CI = 'true';
     expect(ids()).toEqual(['redman', 'bakeking', 'fairprice']);
-    expect(getProvider('bakewithyen')).toBeUndefined();
-    expect(isKnownProvider('bakewithyen')).toBe(true); // known → fetcher skips silently
+    for (const id of ['bakewithyen', 'shengsiong', 'coldstorage']) {
+      expect(getProvider(id)).toBeUndefined();
+      expect(isKnownProvider(id)).toBe(true); // known → fetcher skips silently
+    }
   });
 
   it('SKIP_PROVIDERS denylists by id', () => {
     for (const key of ENV_KEYS) delete process.env[key];
-    process.env.SKIP_PROVIDERS = 'bakewithyen, fairprice';
+    process.env.SKIP_PROVIDERS = 'bakewithyen, fairprice, shengsiong, coldstorage';
     expect(ids()).toEqual(['redman', 'bakeking']);
   });
 
@@ -44,6 +46,7 @@ describe('provider registry filtering', () => {
   });
 
   it('unknown ids are not known providers', () => {
-    expect(isKnownProvider('shengsiong')).toBe(false);
+    expect(isKnownProvider('giant')).toBe(false);
+    expect(isKnownProvider('lazada')).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
 import { db } from '../db/connection.js';
+import { runCleanup } from '../lib/browser.js';
 import { parseBrand } from '../lib/brand.js';
 import { parsePackSize } from '../lib/packSize.js';
 import { createPoliteFetch } from '../lib/politeFetch.js';
@@ -40,6 +41,7 @@ export async function runFetch(trigger: FetchTrigger, onlyLinkIds?: number[]): P
     .prepare('INSERT INTO fetch_runs (trigger) VALUES (?)')
     .run(trigger).lastInsertRowid as number;
 
+  let ctxRef: FetchContext | undefined;
   try {
     let sql = `
       SELECT l.id, l.provider_id AS providerId, l.external_id AS externalId,
@@ -54,7 +56,8 @@ export async function runFetch(trigger: FetchTrigger, onlyLinkIds?: number[]): P
     }
     const links = db.prepare(sql).all(...params) as LinkRow[];
 
-    const ctx: FetchContext = { fetch: createPoliteFetch(), cache: new Map() };
+    const ctx: FetchContext = { fetch: createPoliteFetch(), cache: new Map(), cleanup: [] };
+    ctxRef = ctx;
     const fx = new FxService(ctx.fetch);
     // All launch shops price in SGD, so no rates are prefetched; backfillSgd
     // still self-heals if a non-SGD source is ever added.
@@ -120,6 +123,7 @@ export async function runFetch(trigger: FetchTrigger, onlyLinkIds?: number[]): P
     console.log(`[fetch] run ${runId} (${trigger}): ${okCount} ok, ${errors.length} errors`);
     return runId;
   } finally {
+    if (ctxRef) await runCleanup(ctxRef);
     running = false;
   }
 }

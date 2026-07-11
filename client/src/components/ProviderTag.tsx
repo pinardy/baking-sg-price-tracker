@@ -5,6 +5,8 @@ export const PROVIDER_LABELS: Record<string, string> = {
   bakeking: 'Bake King',
   fairprice: 'FairPrice',
   bakewithyen: 'Bake With Yen',
+  shengsiong: 'Sheng Siong',
+  coldstorage: 'Cold Storage',
 };
 
 export function ProviderTag({ id }: { id: string }) {

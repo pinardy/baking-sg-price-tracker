@@ -232,6 +232,8 @@ export const PROVIDER_COLORS: Record<string, string> = {
   bakeking: '#d97706',
   fairprice: '#2563eb',
   bakewithyen: '#7c3aed',
+  shengsiong: '#059669',
+  coldstorage: '#0891b2',
 };
 
 export function formatPrice(price: number, currency: string): string {

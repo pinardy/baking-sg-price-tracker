@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/connection.js';
+import { runCleanup } from '../lib/browser.js';
 import { createPoliteFetch } from '../lib/politeFetch.js';
 import { getProviders } from '../providers/registry.js';
 import type { FetchContext } from '../providers/types.js';
@@ -22,9 +23,10 @@ miscRouter.get('/search', async (req, res) => {
     : null;
 
   const providers = getProviders().filter((p) => !providerFilter || providerFilter.includes(p.id));
-  const ctx: FetchContext = { fetch: createPoliteFetch(), cache: new Map() };
+  const ctx: FetchContext = { fetch: createPoliteFetch(), cache: new Map(), cleanup: [] };
 
   const settled = await Promise.allSettled(providers.map((p) => p.search(query, ctx)));
+  await runCleanup(ctx);
   res.json(
     providers.map((p, i) => {
       const outcome = settled[i];
